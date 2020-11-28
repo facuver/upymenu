@@ -1,10 +1,9 @@
-import math
-
 
 class Menu:
     def __init__(self, title, render_title=False):
+        
         self.title = title
-
+        self.current = None
         # TODO: implement if we should render a title.. can be done, by adding a noop option to the option list?
         self.render_title = render_title
         self.lcd = None
@@ -14,20 +13,26 @@ class Menu:
         # We start on the first option by default (not 0 to prevent ZeroDivision errors )
         self.focus = 1
         self.viewport = None
-        self.active = False
 
-    # Chunk the options to only render the ones in the viewport
+        self.active = False
+        
+    
+
+
     def _chunk_options(self):
         for i in range(0, len(self.options), self.lines):
             yield self.options[i : i + self.lines]
 
     # Get the current chunk based on the focus position
     def _current_chunk(self):
-        return math.floor(self.focus / (self.lines + 1))  # current chunk
+        return int((self.focus -1) / (self.lines ))  # current chunk
+
+
 
     # Starts the menu, used at root level to start the interface.
     # Or when navigating to a submenu or parten
     def start(self, lcd):
+        self.current = self
         self.lcd = lcd  # Assign the LCD to the menu.
         self.columns = lcd.num_columns  # Get the columns of the LCD
         self.lines = lcd.num_lines  # And the line
@@ -54,10 +59,10 @@ class Menu:
 
     def _render_cursor(self):
         for l in range(0, self.lines):
-            self.lcd.move_to(l, 0)
+            self.lcd.move_to(0, l)
             # If the current position matches the focus, render
             # the cursor otherwise, render an empty space
-            if l == (self.focus - 1):
+            if l == (((self.focus -1) % self.lines )  ):
                 self.lcd.putstr(">")
             else:
                 self.lcd.putstr(" ")
@@ -65,7 +70,7 @@ class Menu:
     def _render_options(self):
         # Render the options:
         for l, option in enumerate(self.viewport):
-            self.lcd.move_to(l, 0)  # Move to the line
+            self.lcd.move_to(1, l)  # Move to the line
             # And render the longest possible string on the screen
             self.lcd.putstr(option.title[: self.columns - 1])
 
@@ -113,13 +118,23 @@ class Menu:
     def parent(self):
         if self.parent_menu:
             self.active = False
+            self.parent_menu.current = self.parent_menu
+            self.focus = 1
             return self.parent_menu.start(self.lcd)
+        else:
+            self.exit()
+            
 
+        
     def _choose_menu(self, submenu):
         self.active = False
+        self.current = submenu
         submenu.parent_menu = self
         return submenu.start(self.lcd)  # Start the submenu or parent
 
+    def exit(self):
+        self.current = None
+        self.lcd.clear()
 
 class MenuAction:
     def __init__(self, title, callback):
